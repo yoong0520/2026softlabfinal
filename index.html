@@ -223,9 +223,9 @@ table.weeks td.m{width:110px}
     <button class="btn outline" id="btnCopy">텍스트 복사</button>
     <button class="btn outline" id="btnDocx">DOCX 저장</button>
     <button class="btn primary" id="btnPdf">PDF 저장</button>
-    <a class="btn outline" id="btnSubmit" href="https://drive.google.com/drive/folders/1xDrHzoQpVWPf6aJBv9OcrZTXxkFhoRsW" target="_blank" rel="noopener">사업단 제출함 열기</a>
+    <a class="btn outline admin-only" id="btnSubmit" style="display:none" href="https://drive.google.com/drive/folders/1xDrHzoQpVWPf6aJBv9OcrZTXxkFhoRsW" target="_blank" rel="noopener">사업단 제출함 열기</a>
   </div>
-  <div class="status" id="submitHint" style="margin:-4px 0 8px">제출 방법: PDF 저장 후 「사업단 제출함 열기」를 눌러 열리는 구글 드라이브 폴더에 내려받은 파일을 끌어다 놓으시면 됩니다(구글 계정 로그인 필요).</div>
+  <div class="status admin-only" id="submitHint" style="margin:-4px 0 8px;display:none">관리자 전용: 「사업단 제출함 열기」는 유은님 브라우저에서만 보입니다(주소 뒤에 #admin을 붙여 연 브라우저).</div>
   <div class="status" id="exportStatus" style="margin:-4px 0 8px"></div>
   <div class="paper-wrap">
   <article class="paper" id="paper">
@@ -580,11 +580,11 @@ async function saveFile(filename,data,label){
       const blob=data instanceof Blob?data:new Blob([data]);
       const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(()=>URL.revokeObjectURL(url),4000);
-      setStatus(st,`${label} 파일을 내려받았습니다: ${filename}. 이제 「사업단 제출함 열기」를 눌러 이 파일을 폴더에 올려 주세요`,"ok");
+      setStatus(st,`${label} 파일을 내려받았습니다: ${filename}. 사업단 안내에 따라 제출해 주세요`,"ok");
     }catch(e){setStatus(st,"저장 실패: "+(e&&e.message||e),"err");}
     return;
   }
-  try{await downloads.save({filename,data});setStatus(st,`${label} 파일이 저장되었습니다: ${filename}. 이제 「사업단 제출함 열기」를 눌러 이 파일을 폴더에 올려 주세요`,"ok");}
+  try{await downloads.save({filename,data});setStatus(st,`${label} 파일이 저장되었습니다: ${filename}. 사업단 안내에 따라 제출해 주세요`,"ok");}
   catch(e){
     if(e&&e.code==="declined")setStatus(st,"저장을 취소했습니다");
     else if(e&&e.code==="rate_limited")setStatus(st,"잠시 후 다시 시도해 주세요","err");
@@ -702,6 +702,16 @@ $("#setSave").addEventListener("click",()=>{
   toast("AI 설정을 저장했습니다");
 });
 loadCfg();
+// 관리자 모드: 주소 뒤에 #admin 을 붙여 한 번 열면 이 브라우저에서만 관리자용 버튼이 보임(#admin-off 로 해제)
+(function(){
+  let admin=false;
+  try{
+    if(location.hash==="#admin"){localStorage.setItem("softlab-report-admin","1");}
+    if(location.hash==="#admin-off"){localStorage.removeItem("softlab-report-admin");}
+    admin=localStorage.getItem("softlab-report-admin")==="1";
+  }catch(e){admin=location.hash==="#admin";}
+  if(admin)$$(".admin-only").forEach(el=>el.style.display="");
+})();
 (async()=>{
   if(!window.claude||typeof window.claude.use!=="function"){
     if(!aiReady())setStatus($("#genStatus"),"AI 기능을 쓰려면 상단의 AI 설정에서 중계 서버 주소 또는 API 키를 입력해 주세요. 입력 없이도 미리보기 항목을 직접 작성해 PDF·DOCX로 저장하실 수 있습니다");
