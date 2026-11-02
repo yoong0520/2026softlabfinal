@@ -202,7 +202,6 @@ table.weeks td.m{width:110px}
           <option>보통</option>
           <option>불만족</option>
           <option>매우 불만족</option>
-          <option>조사하지 않음</option>
         </select></label>
       <label class="f">이수율(%)<input id="pass" type="number" step="0.1" max="100" placeholder="예: 95"></label>
       <label class="f full">그 외 지표·학생 반응(자유 기재)
@@ -388,7 +387,7 @@ function contextText(){
   const nums=[];
   if(f.pre)nums.push(`사전 진단 평균 ${f.pre}점`); if(f.post)nums.push(`사후 진단 평균 ${f.post}점`);
   if(f.pre&&f.post)nums.push(`변화 ${(f.post-f.pre).toFixed(1)}점`);
-  if(f.sat&&f.sat!=="조사하지 않음")nums.push(`학생 만족도(교수자 체감, 5단계): ${f.sat}`); if(f.pass)nums.push(`이수율 ${f.pass}%`);
+  if(f.sat)nums.push(`학생 만족도(교수자 체감, 5단계): ${f.sat}`); if(f.pass)nums.push(`이수율 ${f.pass}%`);
   return `[기본 정보]
 교과목명: ${f.course||"-"} / 담당 교수: ${f.prof||"-"} / 소속: ${f.dept||"-"} / Track: ${f.track||"-"}
 AI 코스웨어: ${f.cw||"-"} / 공급 기업: ${f.vendor||"-"} / 수강 인원: ${d.n_fmt||"-"} / 운영 형태: ${f.mode||"-"}
