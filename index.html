@@ -223,7 +223,9 @@ table.weeks td.m{width:110px}
     <button class="btn outline" id="btnCopy">텍스트 복사</button>
     <button class="btn outline" id="btnDocx">DOCX 저장</button>
     <button class="btn primary" id="btnPdf">PDF 저장</button>
+    <a class="btn outline" id="btnSubmit" href="https://drive.google.com/drive/folders/1xDrHzoQpVWPf6aJBv9OcrZTXxkFhoRsW" target="_blank" rel="noopener">사업단 제출함 열기</a>
   </div>
+  <div class="status" id="submitHint" style="margin:-4px 0 8px">제출 방법: PDF 저장 후 「사업단 제출함 열기」를 눌러 열리는 구글 드라이브 폴더에 내려받은 파일을 끌어다 놓으시면 됩니다(구글 계정 로그인 필요).</div>
   <div class="status" id="exportStatus" style="margin:-4px 0 8px"></div>
   <div class="paper-wrap">
   <article class="paper" id="paper">
@@ -578,11 +580,11 @@ async function saveFile(filename,data,label){
       const blob=data instanceof Blob?data:new Blob([data]);
       const url=URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(()=>URL.revokeObjectURL(url),4000);
-      setStatus(st,`${label} 파일을 내려받습니다: ${filename}`,"ok");
+      setStatus(st,`${label} 파일을 내려받았습니다: ${filename}. 이제 「사업단 제출함 열기」를 눌러 이 파일을 폴더에 올려 주세요`,"ok");
     }catch(e){setStatus(st,"저장 실패: "+(e&&e.message||e),"err");}
     return;
   }
-  try{await downloads.save({filename,data});setStatus(st,`${label} 파일이 저장되었습니다: ${filename}`,"ok");}
+  try{await downloads.save({filename,data});setStatus(st,`${label} 파일이 저장되었습니다: ${filename}. 이제 「사업단 제출함 열기」를 눌러 이 파일을 폴더에 올려 주세요`,"ok");}
   catch(e){
     if(e&&e.code==="declined")setStatus(st,"저장을 취소했습니다");
     else if(e&&e.code==="rate_limited")setStatus(st,"잠시 후 다시 시도해 주세요","err");
