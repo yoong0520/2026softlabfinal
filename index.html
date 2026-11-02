@@ -685,7 +685,13 @@ async function submitToOffice(){
       files:[{filename:fileBase()+".pdf",mime:"application/pdf",base64:await blobToBase64(pdf)},
              {filename:fileBase()+".docx",mime:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",base64:await blobToBase64(docx)}]};
     // Apps Script 웹 앱은 text/plain 본문의 POST만 CORS 없이 받으므로 헤더를 붙이지 않음
-    const res=await fetch(UPLOAD_URL,{method:"POST",body:JSON.stringify(payload),redirect:"follow"});
+    const body=JSON.stringify(payload);
+    let res=null,lastErr=null;
+    for(let attempt=1;attempt<=3&&!res;attempt++){
+      try{res=await fetch(UPLOAD_URL,{method:"POST",body,redirect:"follow"});}
+      catch(e){lastErr=e;if(attempt<3){setStatus(st,`연결이 불안정하여 다시 시도합니다(${attempt}/2)…`);await new Promise(r=>setTimeout(r,2000*attempt));}}
+    }
+    if(!res)throw new Error("사업단 제출함에 연결하지 못했습니다. 잠시 후 다시 시도해 주세요");
     const j=await res.json().catch(()=>({ok:false,message:"응답을 읽지 못했습니다"}));
     if(!j.ok)throw new Error(j.message||"제출 실패");
     setStatus(st,`제출 완료: 「${j.folder}」 폴더에 ${j.files.map(x=>x.name).join(", ")} 저장됨`,"ok");
