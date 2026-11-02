@@ -223,6 +223,7 @@ table.weeks td.m{width:110px}
     <button class="btn outline" id="btnCopy">텍스트 복사</button>
     <button class="btn outline" id="btnDocx">DOCX 저장</button>
     <button class="btn primary" id="btnPdf">PDF 저장</button>
+    <button class="btn primary" id="btnUpload" style="display:none;background:var(--ok)">사업단에 제출</button>
     <a class="btn outline admin-only" id="btnSubmit" style="display:none" href="https://drive.google.com/drive/folders/1xDrHzoQpVWPf6aJBv9OcrZTXxkFhoRsW" target="_blank" rel="noopener">사업단 제출함 열기</a>
   </div>
   <div class="status admin-only" id="submitHint" style="margin:-4px 0 8px;display:none">관리자 전용: 「사업단 제출함 열기」는 유은님 브라우저에서만 보입니다(주소 뒤에 #admin을 붙여 연 브라우저).</div>
@@ -591,8 +592,7 @@ async function saveFile(filename,data,label){
     else setStatus(st,"저장 실패: "+(e&&e.message||e),"err");
   }
 }
-async function exportPdf(){
-  const b=$("#btnPdf"); b.disabled=true; setStatus($("#exportStatus"),"PDF를 만들고 있습니다…");
+async function buildPdfBlob(){
   let host=null;
   try{
     // A4(210mm) 폭의 복제본을 화면 밖에 만들어 그대로 캔버스로 찍음: 페이지 여백은 복제본의 padding으로만 지정
@@ -612,13 +612,16 @@ async function exportPdf(){
       jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
       pagebreak:{mode:["css","legacy"],avoid:["tr",".keep"]}
     }).from(clone).outputPdf("blob");
-    await saveFile(fileBase()+".pdf",blob,"PDF");
-  }catch(e){setStatus($("#exportStatus"),"PDF 생성 실패: "+(e&&e.message||e),"err");}
-  finally{if(host)host.remove();b.disabled=false;}
+    return blob;
+  }finally{if(host)host.remove();}
 }
-async function exportDocx(){
-  const b=$("#btnDocx"); b.disabled=true; setStatus($("#exportStatus"),"DOCX를 만들고 있습니다…");
-  try{
+async function exportPdf(){
+  const b=$("#btnPdf"); b.disabled=true; setStatus($("#exportStatus"),"PDF를 만들고 있습니다…");
+  try{const blob=await buildPdfBlob(); await saveFile(fileBase()+".pdf",blob,"PDF");}
+  catch(e){setStatus($("#exportStatus"),"PDF 생성 실패: "+(e&&e.message||e),"err");}
+  finally{b.disabled=false;}
+}
+async function buildDocxBlob(){
     if(!window.docx)throw new Error("문서 라이브러리를 불러오지 못했습니다. 새로 고침 후 다시 시도해 주세요");
     collect(); const D=window.docx, f=state.fields, d=derived();
     const FONT="맑은 고딕";
@@ -651,10 +654,46 @@ async function exportDocx(){
     ];
     const doc=new D.Document({styles:{default:{document:{run:{font:FONT,size:21}}}},sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:1134,bottom:1134,left:1134,right:1134}}},
       footers:{default:new D.Footer({children:[new D.Paragraph({alignment:D.AlignmentType.CENTER,children:[new D.TextRun({children:[D.PageNumber.CURRENT],font:FONT,size:18})]})]})},children}]});
-    const blob=await D.Packer.toBlob(doc);
-    await saveFile(fileBase()+".docx",blob,"DOCX");
-  }catch(e){setStatus($("#exportStatus"),"DOCX 생성 실패: "+(e&&e.message||e),"err");}
+    return await D.Packer.toBlob(doc);
+}
+async function exportDocx(){
+  const b=$("#btnDocx"); b.disabled=true; setStatus($("#exportStatus"),"DOCX를 만들고 있습니다…");
+  try{const blob=await buildDocxBlob(); await saveFile(fileBase()+".docx",blob,"DOCX");}
+  catch(e){setStatus($("#exportStatus"),"DOCX 생성 실패: "+(e&&e.message||e),"err");}
   finally{b.disabled=false;}
+}
+/* ---------- 사업단 제출(구글 드라이브 자동 저장) ---------- */
+// 사업단 제출 수신기(Google Apps Script 웹 앱) 주소. 비어 있으면 제출 버튼이 숨겨짐.
+const UPLOAD_URL="";
+function blobToBase64(blob){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.onerror=rej;r.readAsDataURL(blob);});}
+async function submitToOffice(){
+  const b=$("#btnUpload"), st=$("#exportStatus");
+  collect();
+  const f=state.fields;
+  if(!f.course||!f.prof){setStatus(st,"제출 전에 교과목명과 담당 교수를 입력해 주세요","err");return;}
+  if(!f.track){setStatus(st,"제출 전에 실증 Track을 선택해 주세요(트랙별 폴더에 저장됩니다)","err");return;}
+  const empty=SECS.filter(k=>!(state.sections[k]||"").trim());
+  if(empty.length&&!confirmBox(`아직 작성되지 않은 항목이 ${empty.length}개 있습니다. 그래도 제출하시겠습니까?`))return;
+  b.disabled=true;
+  try{
+    setStatus(st,"제출용 PDF·DOCX를 만들고 있습니다…");
+    const [pdf,docx]=await Promise.all([buildPdfBlob(),buildDocxBlob()]);
+    setStatus(st,"사업단 제출함으로 보내는 중입니다…");
+    const payload={track:f.track,meta:{course:f.course,prof:f.prof,dept:f.dept,cw:f.cw,vendor:f.vendor,weeks:weekCount()},
+      files:[{filename:fileBase()+".pdf",mime:"application/pdf",base64:await blobToBase64(pdf)},
+             {filename:fileBase()+".docx",mime:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",base64:await blobToBase64(docx)}]};
+    // Apps Script 웹 앱은 text/plain 본문의 POST만 CORS 없이 받으므로 헤더를 붙이지 않음
+    const res=await fetch(UPLOAD_URL,{method:"POST",body:JSON.stringify(payload),redirect:"follow"});
+    const j=await res.json().catch(()=>({ok:false,message:"응답을 읽지 못했습니다"}));
+    if(!j.ok)throw new Error(j.message||"제출 실패");
+    setStatus(st,`제출 완료: 「${j.folder}」 폴더에 ${j.files.map(x=>x.name).join(", ")} 저장됨`,"ok");
+    toast("사업단에 제출되었습니다");
+  }catch(e){setStatus(st,"제출 실패: "+(e&&e.message||e)+" (PDF 저장 후 이메일 제출도 가능합니다)","err");}
+  finally{b.disabled=false;}
+}
+function confirmBox(msg){
+  // 아티팩트 환경에서는 confirm이 막히므로 간단한 자체 확인
+  try{return window.confirm(msg);}catch(e){return true;}
 }
 
 /* ---------- 화면 ---------- */
@@ -678,6 +717,8 @@ function bind(){
   $("#btnCopy").addEventListener("click",copyText);
   $("#btnPdf").addEventListener("click",exportPdf);
   $("#btnDocx").addEventListener("click",exportDocx);
+  $("#btnUpload").addEventListener("click",submitToOffice);
+  if(UPLOAD_URL)$("#btnUpload").style.display="";
   $("#btnReset").addEventListener("click",()=>{
     if(!$("#btnReset").dataset.arm){$("#btnReset").dataset.arm="1";$("#btnReset").textContent="정말 초기화하시려면 다시 클릭";setTimeout(()=>{delete $("#btnReset").dataset.arm;$("#btnReset").textContent="입력 초기화";},3000);return;}
     try{localStorage.removeItem(STORE);}catch(e){}
