@@ -66,6 +66,10 @@ table.weeks td.m{width:110px}
 .toolbar .spacer{flex:1}
 .paper-wrap{overflow:auto}
 .paper{background:#fff;width:var(--paper-w);max-width:100%;margin:0 auto;padding:48px 52px;border:1px solid var(--line);box-shadow:0 2px 12px rgba(0,0,0,.06);font-size:12.5px;line-height:1.6;color:#111}
+.paper.export{width:210mm;max-width:none;margin:0;padding:0 15mm;border:0;box-shadow:none}
+.paper.export .keep{page-break-inside:avoid;break-inside:avoid}
+.paper.export .sec-head{page-break-inside:avoid;break-inside:avoid}
+.paper.export tr{page-break-inside:avoid;break-inside:avoid}
 .paper .doc-tag{text-align:center;font-size:11px;color:#555;margin-bottom:4px}
 .paper h1{text-align:center;font-size:22px;margin:0 0 2px;color:var(--brand)}
 .paper .doc-sub{text-align:center;font-size:13px;color:#333;margin-bottom:18px}
@@ -444,8 +448,10 @@ function parseJson(txt){
   return JSON.parse(m[0]);
 }
 const SET_KEY="softlab-report-ai";
+// 사업단 AI 중계 서버 주소(Cloudflare Worker). 여기에 주소를 넣으면 교수는 아무 설정 없이 AI를 쓸 수 있음.
+const DEFAULT_RELAY="";
 let aiCfg={proxy:"",key:"",model:"claude-sonnet-5-5"};
-function loadCfg(){try{Object.assign(aiCfg,JSON.parse(localStorage.getItem(SET_KEY)||"{}"));}catch(e){}}
+function loadCfg(){try{Object.assign(aiCfg,JSON.parse(localStorage.getItem(SET_KEY)||"{}"));}catch(e){} if(!aiCfg.proxy&&!aiCfg.key&&DEFAULT_RELAY)aiCfg.proxy=DEFAULT_RELAY;}
 function saveCfg(){try{localStorage.setItem(SET_KEY,JSON.stringify(aiCfg));}catch(e){}}
 function aiReady(){return !!(sample||aiCfg.proxy||aiCfg.key);}
 async function askDirect(prompt,opts){
@@ -571,16 +577,28 @@ async function saveFile(filename,data,label){
 }
 async function exportPdf(){
   const b=$("#btnPdf"); b.disabled=true; setStatus($("#exportStatus"),"PDF를 만들고 있습니다…");
+  let host=null;
   try{
-    const paper=$("#paper"); paper.classList.add("exporting");
-    const btns=$$("#paper .sec-head .btn"); btns.forEach(x=>x.style.display="none");
-    $$("#paper .sec.empty").forEach(x=>x.classList.add("hide-ph"));
-    const style=document.createElement("style"); style.textContent=".hide-ph::before{content:'' !important}"; document.head.appendChild(style);
-    const blob=await html2pdf().set({margin:[12,12,14,12],html2canvas:{scale:2,useCORS:true,letterRendering:true},jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},pagebreak:{mode:["css","legacy"],avoid:["tr","h2"]}}).from(paper).outputPdf("blob");
-    btns.forEach(x=>x.style.display=""); style.remove(); $$("#paper .hide-ph").forEach(x=>x.classList.remove("hide-ph"));
+    // A4(210mm) 폭의 복제본을 화면 밖에 만들어 그대로 캔버스로 찍음: 페이지 여백은 복제본의 padding으로만 지정
+    const clone=$("#paper").cloneNode(true);
+    clone.id="paper-export"; clone.className="paper export";
+    clone.querySelectorAll(".sec-head .btn").forEach(x=>x.remove());
+    clone.querySelectorAll(".sec").forEach(x=>{x.removeAttribute("contenteditable");x.classList.remove("empty");if(!x.innerText.trim())x.innerText="(미작성)";});
+    // 제목과 본문이 쪽 경계에서 갈라지지 않도록 묶음
+    clone.querySelectorAll(".sec-head").forEach(h=>{const body=h.nextElementSibling;const wrap=document.createElement("div");wrap.className="keep";h.parentNode.insertBefore(wrap,h);wrap.appendChild(h);if(body&&body.classList.contains("sec"))wrap.appendChild(body);});
+    host=document.createElement("div");
+    host.style.cssText="position:absolute;left:0;top:0;width:210mm;z-index:-1;opacity:0;pointer-events:none;background:#fff";
+    host.appendChild(clone); document.body.appendChild(host);
+    await new Promise(r=>setTimeout(r,50));
+    const blob=await html2pdf().set({
+      margin:[15,0,18,0],
+      html2canvas:{scale:2,useCORS:true,letterRendering:true},
+      jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
+      pagebreak:{mode:["css","legacy"],avoid:["tr",".keep"]}
+    }).from(clone).outputPdf("blob");
     await saveFile(fileBase()+".pdf",blob,"PDF");
-  }catch(e){setStatus($("#exportStatus"),"PDF 생성 실패: "+(e&&e.message||e),"err");$$("#paper .sec-head .btn").forEach(x=>x.style.display="");}
-  finally{b.disabled=false;}
+  }catch(e){setStatus($("#exportStatus"),"PDF 생성 실패: "+(e&&e.message||e),"err");}
+  finally{if(host)host.remove();b.disabled=false;}
 }
 async function exportDocx(){
   const b=$("#btnDocx"); b.disabled=true; setStatus($("#exportStatus"),"DOCX를 만들고 있습니다…");
