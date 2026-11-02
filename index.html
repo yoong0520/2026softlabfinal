@@ -180,10 +180,14 @@ table.weeks td.m{width:110px}
     </table>
     <div class="ai-box" id="syllabusBox">
       <div class="row" style="justify-content:space-between">
-        <strong style="font-size:13px">AI 도움: 강의계획서 붙여넣기로 주차 표 채우기</strong>
-        <button class="btn small outline" id="btnSyllabus">주차 표 채우기</button>
+        <strong style="font-size:13px">AI 도움: 강의계획서로 주차 표 자동 채우기</strong>
+        <button class="btn small outline" id="btnSyllabus">붙여넣은 내용으로 채우기</button>
       </div>
-      <textarea id="syllabus" placeholder="강의계획서의 주차별 내용을 그대로 붙여넣으시면 AI가 1~15주차 주제(필요 시 활용 내용)로 정리해 드립니다"></textarea>
+      <div class="row" style="margin:6px 0 8px">
+        <label class="btn small primary" style="cursor:pointer">강의계획서 파일 올리기<input type="file" id="syllabusFile" accept=".pdf,.docx,.hwpx,.xlsx,.txt" style="display:none"></label>
+        <span style="font-size:12px;color:var(--muted)">PDF, Word(docx), 한글(hwpx), 엑셀(xlsx), 텍스트 파일. 올리면 주차 표가 자동으로 채워지고, 이후 직접 고치실 수 있습니다. 구형 .hwp는 한글에서 hwpx 또는 pdf로 저장 후 올려 주세요.</span>
+      </div>
+      <textarea id="syllabus" placeholder="또는 강의계획서의 주차별 내용을 여기에 붙여넣고 위의 버튼을 눌러 주세요"></textarea>
       <div class="status" id="syllabusStatus"></div>
     </div>
   </div>
@@ -547,6 +551,54 @@ async function doRegen(){
   }catch(e){toast("다시 쓰기 실패: "+aiError(e));}
   finally{btn.disabled=false;btn.textContent=old;}
 }
+const LIBS={
+  pdf:"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js",
+  mammoth:"https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js",
+  jszip:"https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
+  xlsx:"https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+};
+const loaded={};
+function loadLib(name){
+  if(loaded[name])return loaded[name];
+  loaded[name]=new Promise((res,rej)=>{const sc=document.createElement("script");sc.src=LIBS[name];sc.onload=res;sc.onerror=()=>rej(new Error("라이브러리를 불러오지 못했습니다("+name+")"));document.head.appendChild(sc);});
+  return loaded[name];
+}
+async function extractText(file){
+  const name=(file.name||"").toLowerCase(); const buf=await file.arrayBuffer();
+  if(name.endsWith(".txt"))return new TextDecoder("utf-8").decode(buf);
+  if(name.endsWith(".pdf")){
+    await loadLib("pdf"); const pdfjs=window.pdfjsLib; pdfjs.GlobalWorkerOptions.workerSrc="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    const doc=await pdfjs.getDocument({data:buf}).promise; let out=[];
+    for(let i=1;i<=Math.min(doc.numPages,15);i++){const pg=await doc.getPage(i);const tc=await pg.getTextContent();let line="",lastY=null;
+      tc.items.forEach(it=>{const y=Math.round(it.transform[5]);if(lastY!==null&&Math.abs(y-lastY)>3){out.push(line);line="";}line+=(line&&!line.endsWith(" ")?" ":"")+it.str;lastY=y;});
+      out.push(line);}
+    return out.join("\n");
+  }
+  if(name.endsWith(".docx")){await loadLib("mammoth");const r=await window.mammoth.extractRawText({arrayBuffer:buf});return r.value;}
+  if(name.endsWith(".hwpx")){
+    await loadLib("jszip"); const zip=await window.JSZip.loadAsync(buf); const parts=Object.keys(zip.files).filter(n=>/^Contents\/section\d+\.xml$/i.test(n)).sort();
+    if(!parts.length)throw new Error("hwpx 본문을 찾지 못했습니다");
+    let out=[];
+    for(const n of parts){const xml=await zip.file(n).async("string");
+      // 문단(hp:p) 단위로 줄을 나누고 글자(hp:t)만 추출
+      xml.split(/<hp:p[\s>]/).forEach(seg=>{const t=(seg.match(/<hp:t[^>]*>([^<]*)<\/hp:t>/g)||[]).map(x=>x.replace(/<[^>]+>/g,"")).join("");if(t.trim())out.push(t);});}
+    return out.join("\n");
+  }
+  if(name.endsWith(".xlsx")){await loadLib("xlsx");const wb=window.XLSX.read(buf,{type:"array"});return wb.SheetNames.map(sn=>window.XLSX.utils.sheet_to_csv(wb.Sheets[sn])).join("\n");}
+  throw new Error("지원하지 않는 파일 형식입니다(pdf, docx, hwpx, xlsx, txt만 가능)");
+}
+async function onSyllabusFile(ev){
+  const file=ev.target.files&&ev.target.files[0]; ev.target.value=""; if(!file)return;
+  const st=$("#syllabusStatus");
+  if(file.size>15*1024*1024){setStatus(st,"파일이 너무 큽니다(15MB 이하)","err");return;}
+  try{
+    setStatus(st,`「${file.name}」에서 내용을 읽고 있습니다…`);
+    let text=(await extractText(file)).replace(/[ \t]+/g," ").replace(/\n{3,}/g,"\n\n").trim();
+    if(text.length<20)throw new Error("파일에서 글자를 거의 찾지 못했습니다(스캔 이미지 PDF일 수 있음). 내용을 복사해 붙여넣어 주세요");
+    $("#syllabus").value=text.slice(0,12000); save();
+    await fillFromSyllabus();
+  }catch(e){setStatus(st,"파일 읽기 실패: "+(e&&e.message||e),"err");}
+}
 async function fillFromSyllabus(){
   const txt=$("#syllabus").value.trim(); const st=$("#syllabusStatus");
   if(!aiReady()){setStatus(st,"AI 설정이 필요합니다. 상단의 AI 설정을 확인해 주세요","err");openSettings();return;}
@@ -560,10 +612,10 @@ async function fillFromSyllabus(){
 15|주제|활용 내용
 
 [강의계획서]
-${txt.slice(0,6000)}`,{modelTier:"quick"});
+${txt.slice(0,9000)}`,{modelTier:"quick"});
     let n=0;
     stripFences(raw).split(/\n/).forEach(line=>{const m=line.match(/^\s*(\d{1,2})\s*\|\s*([^|]*)\|?\s*(.*)$/); if(!m)return; const i=(+m[1])-1; if(i<0||i>=15)return; const topic=m[2].trim(), use=(m[3]||"").trim(); if(topic){state.weeks[i].topic=topic.slice(0,40);n++;} if(use&&!state.weeks[i].use)state.weeks[i].use=use.slice(0,60);});
-    apply(); save(); setStatus(st,`${n}개 주차의 주제를 채웠습니다. 활용 내용과 형태를 확인해 주세요`,"ok");
+    apply(); save(); setStatus(st,`${n}개 주차의 주제를 채웠습니다. 표에서 내용을 직접 고치고 활용 형태를 골라 주세요`,"ok");
   }catch(e){setStatus(st,"정리 실패: "+aiError(e),"err");}
   finally{b.disabled=false;}
 }
@@ -727,6 +779,7 @@ function bind(){
   $$(".pane-tabs .btn").forEach(b=>b.addEventListener("click",()=>showPane(b.dataset.pane)));
   $("#btnGenerate").addEventListener("click",generateAll);
   $("#btnSyllabus").addEventListener("click",fillFromSyllabus);
+  $("#syllabusFile").addEventListener("change",onSyllabusFile);
   $$("[data-regen]").forEach(b=>b.addEventListener("click",()=>openRegen(b.dataset.regen)));
   $("#regenCancel").addEventListener("click",()=>$("#regenModal").classList.remove("show"));
   $("#regenGo").addEventListener("click",doRegen);
