@@ -424,8 +424,19 @@ ${STYLE_RULES}
 - outcomes: Ⅴ. 성과 및 시사점 — 교육적 효과, 가장 효과적이었던 장면 1건을 교육적 문제→전략→과정→성과 흐름으로, 타 교과·타 대학 확산 가능성.
 - plan: Ⅵ. 향후 계획 및 제언 — 차학기 유지·변경 사항, 기업·사업단·대학에 대한 제언.
 
-출력은 아래 키를 가진 JSON 객체 하나만 출력함(설명문 금지): {"design":"...","operation":"...","results":"...","issues":"...","outcomes":"...","plan":"..."}
-각 값은 문단 구분을 줄바꿈(\\n)으로 표시한 순수 텍스트임.
+출력 형식(반드시 지킴): 아래 여섯 구분선을 이 순서대로 쓰고, 각 구분선 다음 줄부터 그 항목의 본문을 순수 텍스트로 씀. 구분선 밖에 설명문·인사말·코드블록을 쓰지 않음.
+[[design]]
+(Ⅰ 본문)
+[[operation]]
+(Ⅱ 본문)
+[[results]]
+(Ⅲ 본문)
+[[issues]]
+(Ⅳ 본문)
+[[outcomes]]
+(Ⅴ 본문)
+[[plan]]
+(Ⅵ 본문)
 
 [교수 입력 자료]
 ${contextText()}`;
@@ -438,33 +449,18 @@ ${STYLE_RULES}
 ${note?`작성자 요청: ${note}\n`:""}현재 작성된 내용(참고용, 그대로 반복하지 말고 개선):
 ${current||"(비어 있음)"}
 
-출력은 JSON 객체 하나만: {"text":"..."} (문단 구분은 \\n)
+출력은 해당 항목의 본문 텍스트만 씀. 제목, 설명문, 인사말, 코드블록, 따옴표를 붙이지 않음.
 
 [교수 입력 자료]
 ${contextText()}`;
 }
-function parseJson(txt){
-  if(typeof txt!=="string")return txt;
-  const m=txt.match(/\{[\s\S]*\}/); if(!m)throw new Error("AI 응답에서 보고서 내용을 찾지 못했습니다. 다시 시도해 주세요");
-  try{return JSON.parse(m[0]);}catch(e){}
-  // 오픈소스 모델이 문자열 안에 줄바꿈을 그대로 넣는 경우를 보정
-  let out="",inStr=false,esc=false;
-  for(const ch of m[0]){
-    if(inStr){
-      if(esc){out+=ch;esc=false;continue;}
-      if(ch==="\\"){esc=true;out+=ch;continue;}
-      if(ch==='"'){inStr=false;out+=ch;continue;}
-      if(ch==="\n"){out+="\\n";continue;}
-      if(ch==="\r"){continue;}
-      if(ch==="\t"){out+="\\t";continue;}
-      out+=ch;
-    }else{
-      if(ch==='"')inStr=true;
-      out+=ch;
-    }
-  }
-  out=out.replace(/,\s*([}\]])/g,"$1");
-  try{return JSON.parse(out);}catch(e){throw new Error("AI 응답 형식이 올바르지 않습니다. 다시 시도해 주세요");}
+function stripFences(t){return String(t||"").replace(/```[a-z]*\n?/gi,"").replace(/```/g,"").trim();}
+function parseSections(txt){
+  const t=stripFences(txt); const out={}; const re=/\[\[(design|operation|results|issues|outcomes|plan)\]\]/g;
+  const marks=[]; let m; while((m=re.exec(t)))marks.push({k:m[1],i:m.index,e:m.index+m[0].length});
+  if(!marks.length)throw new Error("AI 응답에서 보고서 항목을 찾지 못했습니다. 다시 시도해 주세요");
+  marks.forEach((mk,i)=>{const body=t.slice(mk.e,i+1<marks.length?marks[i+1].i:t.length).trim(); if(body)out[mk.k]=body;});
+  return out;
 }
 const SET_KEY="softlab-report-ai";
 // 사업단 AI 중계 서버 주소(Cloudflare Worker). 여기에 주소를 넣으면 교수는 아무 설정 없이 AI를 쓸 수 있음.
@@ -485,18 +481,12 @@ async function askDirect(prompt,opts){
   if(res.status===401||res.status===403)throw {code:"auth",message:"API 키 또는 중계 서버 인증에 실패했습니다. AI 설정을 확인해 주세요"};
   if(!res.ok){let t="";try{t=(await res.json()).error?.message||"";}catch(e){} throw {code:"http",message:`AI 요청 실패(${res.status}) ${t}`.slice(0,160)};}
   const j=await res.json();
-  const text=Array.isArray(j.content)?j.content.filter(c=>c.type==="text").map(c=>c.text).join(""):(j.text||"");
-  return parseJson(text);
+  let text=Array.isArray(j.content)?j.content.filter(c=>c.type==="text").map(c=>typeof c.text==="string"?c.text:JSON.stringify(c.text)).join(""):(j.text||"");
+  if(text==="[object Object]")throw {code:"http",message:"중계 서버 코드가 이전 버전입니다. 사업단에 worker.js 갱신을 요청해 주세요"};
+  return text;
 }
-async function askJson(prompt,opts){
-  if(sample){
-    try{return await sample.json(prompt,Object.assign({modelTier:"default",cache:false},opts||{}));}
-    catch(e){
-      if(e&&e.code)throw e;
-      const r=await sample(prompt,Object.assign({modelTier:"default",cache:false},opts||{}));
-      return parseJson(r.text);
-    }
-  }
+async function askText(prompt,opts){
+  if(sample){const r=await sample(prompt,Object.assign({modelTier:"default",cache:false},opts||{}));return r.text;}
   if(aiCfg.proxy||aiCfg.key)return askDirect(prompt,opts);
   throw {code:"no_ai",message:"AI 설정이 필요합니다. 상단의 AI 설정에서 중계 서버 주소 또는 API 키를 입력해 주세요"};
 }
@@ -518,7 +508,7 @@ async function generateAll(){
   setStatus($("#genStatus"),"");
   const t0=Date.now(); const tick=setInterval(()=>setStatus($("#genStatus"),`작성 중입니다… ${Math.round((Date.now()-t0)/1000)}초`),1000);
   try{
-    const out=await askJson(fullPrompt());
+    const out=parseSections(await askText(fullPrompt()));
     SECS.forEach(s=>{if(out&&typeof out[s]==="string")setSection(s,clean(out[s]));});
     save(); setStatus($("#genStatus"),"보고서 초안 작성이 완료되었습니다. 미리보기에서 확인·수정 후 저장해 주세요","ok");
     toast("보고서 초안이 작성되었습니다"); showPane("preview");
@@ -538,8 +528,9 @@ async function doRegen(){
   const btn=$(`[data-regen=${sec}]`); const old=btn.textContent; btn.disabled=true; btn.textContent="작성 중입니다…";
   try{
     collect();
-    const out=await askJson(sectionPrompt(sec,note,state.sections[sec]));
-    if(out&&typeof out.text==="string"){setSection(sec,clean(out.text));save();toast("항목을 다시 작성했습니다");}
+    let text=stripFences(await askText(sectionPrompt(sec,note,state.sections[sec])));
+    text=text.replace(/^\[\[\w+\]\]\s*/,"").replace(/^(Ⅰ|Ⅱ|Ⅲ|Ⅳ|Ⅴ|Ⅵ)\.[^\n]*\n/,"").trim();
+    if(text){setSection(sec,clean(text));save();toast("항목을 다시 작성했습니다");}
   }catch(e){toast("다시 쓰기 실패: "+aiError(e));}
   finally{btn.disabled=false;btn.textContent=old;}
 }
@@ -549,12 +540,16 @@ async function fillFromSyllabus(){
   if(txt.length<20){setStatus(st,"강의계획서 내용을 먼저 붙여넣어 주세요","err");return;}
   const b=$("#btnSyllabus"); b.disabled=true; setStatus(st,"주차 표를 정리하고 있습니다…");
   try{
-    const out=await askJson(`아래는 대학 강의계획서의 주차별 내용임. 1~15주차 각각의 수업 주제를 15자 이내로 요약하고, AI 코스웨어 활용 내용이 명시된 주차가 있으면 use에 20자 이내로 적음(없으면 빈 문자열). 시험·휴강 주차는 topic에 그대로 표기함. 출력은 JSON만: {"weeks":[{"week":1,"topic":"...","use":"..."}, ... 15개]}
+    const raw=await askText(`아래는 대학 강의계획서의 주차별 내용임. 1~15주차 각각의 수업 주제를 15자 이내로 요약하고, AI 코스웨어 활용 내용이 명시된 주차가 있으면 20자 이내로 적음(없으면 비움). 시험·휴강 주차는 주제에 그대로 표기함. 반드시 한국어로, 아래 형식의 15줄만 출력하고 다른 말은 쓰지 않음.
+1|주제|활용 내용
+2|주제|활용 내용
+...
+15|주제|활용 내용
 
 [강의계획서]
 ${txt.slice(0,6000)}`,{modelTier:"quick"});
     let n=0;
-    (out.weeks||[]).forEach(w=>{const i=(+w.week)-1; if(i>=0&&i<15){ if(w.topic){state.weeks[i].topic=String(w.topic).slice(0,40);n++;} if(w.use&&!state.weeks[i].use)state.weeks[i].use=String(w.use).slice(0,60);}});
+    stripFences(raw).split(/\n/).forEach(line=>{const m=line.match(/^\s*(\d{1,2})\s*\|\s*([^|]*)\|?\s*(.*)$/); if(!m)return; const i=(+m[1])-1; if(i<0||i>=15)return; const topic=m[2].trim(), use=(m[3]||"").trim(); if(topic){state.weeks[i].topic=topic.slice(0,40);n++;} if(use&&!state.weeks[i].use)state.weeks[i].use=use.slice(0,60);});
     apply(); save(); setStatus(st,`${n}개 주차의 주제를 채웠습니다. 활용 내용과 형태를 확인해 주세요`,"ok");
   }catch(e){setStatus(st,"정리 실패: "+aiError(e),"err");}
   finally{b.disabled=false;}
