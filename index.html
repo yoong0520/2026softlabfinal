@@ -72,7 +72,10 @@ table.weeks td.m{width:110px}
 .paper table{width:100%;border-collapse:collapse;margin:6px 0 14px;font-size:11.5px}
 .paper table th,.paper table td{border:1px solid #9aa4b1;padding:5px 7px;vertical-align:top}
 .paper table th{background:#e9eef7;font-weight:500;text-align:center}
-.paper table td.k{background:#f4f6f9;font-weight:500;width:26%}
+.paper table td.k{background:#f4f6f9;font-weight:500}
+.paper #infoTable{table-layout:fixed}
+.paper #infoTable td.k{width:18%}
+.paper #infoTable td:not(.k){width:32%}
 .paper h2{font-size:14px;color:var(--brand);margin:18px 0 6px;padding-bottom:3px;border-bottom:2px solid var(--brand)}
 .paper .sec{white-space:pre-wrap;min-height:28px;border-radius:4px;padding:2px 4px}
 .paper .sec:focus{outline:2px solid #b9cdf3;background:#fbfcff}
@@ -225,6 +228,7 @@ table.weeks td.m{width:110px}
     <div class="doc-sub">(1~15주차)</div>
 
     <table id="infoTable">
+      <colgroup><col style="width:18%"><col style="width:32%"><col style="width:18%"><col style="width:32%"></colgroup>
       <tr><td class="k">교과목명</td><td data-f="course"></td><td class="k">담당 교수</td><td data-f="prof"></td></tr>
       <tr><td class="k">대학·소속</td><td data-f="dept"></td><td class="k">실증 Track</td><td data-f="track"></td></tr>
       <tr><td class="k">AI 코스웨어</td><td data-f="cw"></td><td class="k">공급 기업</td><td data-f="vendor"></td></tr>
