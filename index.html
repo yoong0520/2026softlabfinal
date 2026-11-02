@@ -262,7 +262,7 @@ table.weeks td.m{width:110px}
     <div class="sec empty" id="sec-plan" contenteditable="true" data-sec="plan"></div>
 
     <div class="sign">작성일: <span id="signDate"></span>　　작성자: <span class="line" id="signName"></span> (서명)</div>
-    <div class="foot">한림대학교 AI교육혁신원 에듀테크소프트랩사업부 · 고등교육 에듀테크 소프트랩</div>
+    <div class="foot">한림대학교 에듀테크소프트랩사업단</div>
   </article>
   </div>
 </section>
@@ -647,7 +647,7 @@ async function exportDocx(){
       H(SEC_TITLE.outcomes),...secParas("outcomes"),
       H(SEC_TITLE.plan),...secParas("plan"),
       new D.Paragraph({children:[run(`작성일: ${$("#signDate").textContent}    작성자: ${f.prof||"          "} (서명)`)],alignment:D.AlignmentType.RIGHT,spacing:{before:400}}),
-      new D.Paragraph({children:[run("한림대학교 AI교육혁신원 에듀테크소프트랩사업부 · 고등교육 에듀테크 소프트랩",{size:16,color:"666666"})],alignment:D.AlignmentType.CENTER,spacing:{before:300}})
+      new D.Paragraph({children:[run("한림대학교 에듀테크소프트랩사업단",{size:16,color:"666666"})],alignment:D.AlignmentType.CENTER,spacing:{before:300}})
     ];
     const doc=new D.Document({styles:{default:{document:{run:{font:FONT,size:21}}}},sections:[{properties:{page:{size:{width:11906,height:16838},margin:{top:1134,bottom:1134,left:1134,right:1134}}},
       footers:{default:new D.Footer({children:[new D.Paragraph({alignment:D.AlignmentType.CENTER,children:[new D.TextRun({children:[D.PageNumber.CURRENT],font:FONT,size:18})]})]})},children}]});
