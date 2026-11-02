@@ -450,7 +450,7 @@ function parseJson(txt){
 }
 const SET_KEY="softlab-report-ai";
 // 사업단 AI 중계 서버 주소(Cloudflare Worker). 여기에 주소를 넣으면 교수는 아무 설정 없이 AI를 쓸 수 있음.
-const DEFAULT_RELAY="";
+const DEFAULT_RELAY="https://lively-haze-872f.yueun88.workers.dev";
 let aiCfg={proxy:"",key:"",model:"claude-sonnet-5-5"};
 function loadCfg(){try{Object.assign(aiCfg,JSON.parse(localStorage.getItem(SET_KEY)||"{}"));}catch(e){} if(!aiCfg.proxy&&!aiCfg.key&&DEFAULT_RELAY)aiCfg.proxy=DEFAULT_RELAY;}
 function saveCfg(){try{localStorage.setItem(SET_KEY,JSON.stringify(aiCfg));}catch(e){}}
