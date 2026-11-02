@@ -445,8 +445,26 @@ ${contextText()}`;
 }
 function parseJson(txt){
   if(typeof txt!=="string")return txt;
-  const m=txt.match(/\{[\s\S]*\}/); if(!m)throw new Error("JSON 없음");
-  return JSON.parse(m[0]);
+  const m=txt.match(/\{[\s\S]*\}/); if(!m)throw new Error("AI 응답에서 보고서 내용을 찾지 못했습니다. 다시 시도해 주세요");
+  try{return JSON.parse(m[0]);}catch(e){}
+  // 오픈소스 모델이 문자열 안에 줄바꿈을 그대로 넣는 경우를 보정
+  let out="",inStr=false,esc=false;
+  for(const ch of m[0]){
+    if(inStr){
+      if(esc){out+=ch;esc=false;continue;}
+      if(ch==="\\"){esc=true;out+=ch;continue;}
+      if(ch==='"'){inStr=false;out+=ch;continue;}
+      if(ch==="\n"){out+="\\n";continue;}
+      if(ch==="\r"){continue;}
+      if(ch==="\t"){out+="\\t";continue;}
+      out+=ch;
+    }else{
+      if(ch==='"')inStr=true;
+      out+=ch;
+    }
+  }
+  out=out.replace(/,\s*([}\]])/g,"$1");
+  try{return JSON.parse(out);}catch(e){throw new Error("AI 응답 형식이 올바르지 않습니다. 다시 시도해 주세요");}
 }
 const SET_KEY="softlab-report-ai";
 // 사업단 AI 중계 서버 주소(Cloudflare Worker). 여기에 주소를 넣으면 교수는 아무 설정 없이 AI를 쓸 수 있음.
