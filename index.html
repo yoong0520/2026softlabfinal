@@ -190,11 +190,20 @@ table.weeks td.m{width:110px}
 
   <div class="card">
     <h2><span class="num">4</span>결과 수치 <span class="badge">선택</span></h2>
-    <div class="hint">아시는 수치만 적어 주세요. 비어 있는 항목은 보고서에 넣지 않으며, AI가 숫자를 만들어 내지 않습니다.</div>
+    <div class="hint">아시는 수치만 적어 주세요. 비어 있는 항목은 보고서에 넣지 않으며, AI가 숫자를 만들어 내지 않습니다. 학생 만족도의 공식 점수는 사업단 공통 조사(11월 말)로 집계되므로, 여기서는 체감 수준만 골라 주세요.</div>
     <div class="grid">
       <label class="f">사전 진단 평균(점)<input id="pre" type="number" step="0.1" placeholder="예: 61.2"></label>
       <label class="f">사후 진단 평균(점)<input id="post" type="number" step="0.1" placeholder="예: 74.5"></label>
-      <label class="f">학생 만족도(5점 만점)<input id="sat" type="number" step="0.1" max="5" placeholder="예: 4.2"></label>
+      <label class="f">학생 만족도(교수자가 체감한 전반적 수준)
+        <select id="sat">
+          <option value="">선택</option>
+          <option>매우 만족</option>
+          <option>만족</option>
+          <option>보통</option>
+          <option>불만족</option>
+          <option>매우 불만족</option>
+          <option>조사하지 않음</option>
+        </select></label>
       <label class="f">이수율(%)<input id="pass" type="number" step="0.1" max="100" placeholder="예: 95"></label>
       <label class="f full">그 외 지표·학생 반응(자유 기재)
         <textarea id="other" placeholder="예: 1인당 문항 풀이 약 1,200건, 대시보드로 저활용 학생 5명 면담, 학생들이 즉시 피드백을 가장 좋아함"></textarea></label>
@@ -379,7 +388,7 @@ function contextText(){
   const nums=[];
   if(f.pre)nums.push(`사전 진단 평균 ${f.pre}점`); if(f.post)nums.push(`사후 진단 평균 ${f.post}점`);
   if(f.pre&&f.post)nums.push(`변화 ${(f.post-f.pre).toFixed(1)}점`);
-  if(f.sat)nums.push(`학생 만족도 ${f.sat}점(5점 만점)`); if(f.pass)nums.push(`이수율 ${f.pass}%`);
+  if(f.sat&&f.sat!=="조사하지 않음")nums.push(`학생 만족도(교수자 체감, 5단계): ${f.sat}`); if(f.pass)nums.push(`이수율 ${f.pass}%`);
   return `[기본 정보]
 교과목명: ${f.course||"-"} / 담당 교수: ${f.prof||"-"} / 소속: ${f.dept||"-"} / Track: ${f.track||"-"}
 AI 코스웨어: ${f.cw||"-"} / 공급 기업: ${f.vendor||"-"} / 수강 인원: ${d.n_fmt||"-"} / 운영 형태: ${f.mode||"-"}
