@@ -42,8 +42,10 @@ export default {
     for (const model of MODELS) {
       try {
         const r = await env.AI.run(model, { messages, max_tokens, temperature: 0.4 });
-        let text = typeof r === "string" ? r : (r.response ?? r.result?.response ?? r.choices?.[0]?.message?.content ?? "");
-        text = String(text).replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+        // 모델에 따라 response가 문자열이 아니라 이미 파싱된 JSON 객체로 올 수 있음 → 문자열로 통일
+        let raw = typeof r === "string" ? r : (r.response ?? r.result?.response ?? r.choices?.[0]?.message?.content ?? r);
+        let text = typeof raw === "string" ? raw : JSON.stringify(raw);
+        text = text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
         if (!text) throw new Error("빈 응답");
         return json({ model, content: [{ type: "text", text }] }, 200, cors);
       } catch (e) {
