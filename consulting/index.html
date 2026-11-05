@@ -540,7 +540,10 @@ function parseSections(txt,keys){
   marks.forEach((mk,i)=>{const body=t.slice(mk.e,i+1<marks.length?marks[i+1].i:t.length).trim();if(body)out[mk.k]=body;});
   return out;
 }
-const clean=s=>String(s).replace(/\*\*?/g,"").replace(/^#+\s*/gm,"").trim();
+const clean=s=>String(s).replace(/\*\*?/g,"").replace(/^#+\s*/gm,"")
+  .replace(/^(-\s*)?(교수자|학습자)\s*측\s*[^:：\n]{1,14}원인\s*[:：]\s*/gm,"$1")
+  .replace(/^(-\s*)?(개선안 목표|개입안 이름|핵심 내용|교수자 수행문제|학습자 수행문제)\s*[:：]\s*/gm,"$1")
+  .replace(/^-\s*$/gm,"").trim();
 async function askDirect(prompt,opts){
   const body={model:aiCfg.model||"claude-sonnet-5-5",max_tokens:(opts&&opts.modelTier==="quick")?2000:5000,messages:[{role:"user",content:prompt}]};
   let url,headers={"content-type":"application/json"};
@@ -637,10 +640,10 @@ ${keys.map(k=>"[["+k+"]]").join("\n")}
 [자료]
 ${consultContext()}`),keys);
     const map={should:"cShould",is:"cIs",gap:"cGap",tk:"c_tk",sk:"c_sk",tm:"c_tm",sm:"c_sm",te:"c_te",se:"c_se",gt:"gT",gs:"gS",final:"finalPlan",overall:"overall",followup:"followup"};
-    Object.entries(map).forEach(([k,id])=>{if(out[k])$("#"+id).value=clean(out[k]);});
+    Object.entries(map).forEach(([k,id])=>{if(out[k])$("#"+id).value=(k==="gap"?String(out[k]).replace(/\*\*?/g,"").trim():clean(out[k]));});
     if(out.iv){
       const lines=stripFences(out.iv).split(/\n/).map(l=>l.replace(/^[-•\d.)\s]+/,"").trim()).filter(Boolean);
-      const ivs=lines.slice(0,6).map(l=>{const [name,desc]=l.split("|").map(x=>(x||"").trim());return {name:desc?`${name}: ${desc}`:name,acc:"",val:"",eth:"",eff:"",fea:""};});
+      const ivs=lines.slice(0,6).map(l=>{const [name,desc]=l.split("|").map(x=>(x||"").replace(/^(개입안\s*이름|개입안|핵심\s*내용)\s*[:：]\s*/,"").trim());return {name:desc?`${name}: ${desc}`:name,acc:"",val:"",eth:"",eff:"",fea:""};});
       if(ivs.length){const existing=state.con.iv.filter(iv=>iv.name.trim());state.con.iv=existing.concat(ivs).slice(0,8);renderIv();}
     }
     save(); setStatus(st,"초안을 작성했습니다. 각 항목을 검토·수정하고 개입안 점수를 매겨 주세요","ok"); toast("컨설팅 초안이 작성되었습니다");
