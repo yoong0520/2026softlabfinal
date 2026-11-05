@@ -17,7 +17,11 @@
   - 개인 Anthropic API 키(브라우저에만 저장)
 
 ## 파일 구성
-- `index.html` — 앱 전체(HTML·CSS·JS 단일 파일). 외부 라이브러리는 docx.js, html2pdf.js를 CDN에서 불러옵니다.
+- `index.html` — 실증 수업 결과보고서 작성 도우미(HTML·CSS·JS 단일 파일)
+- `consulting/index.html` — 수업운영 컨설팅(교수자 자가진단 → 컨설턴트 검토) 페이지
+- `relay/worker.js` — Cloudflare Workers AI 중계 서버
+- `relay/drive-upload.gs` — 구글 드라이브 제출 수신기(Apps Script). 결과보고서 트랙별 저장과 컨설팅 요청·결과 저장을 모두 처리
+- 외부 라이브러리는 docx.js, html2pdf.js를 CDN에서 불러옵니다.
 
 ## 라이선스
 한림대학교 AI교육혁신원 에듀테크소프트랩사업부 내부 활용 목적.
