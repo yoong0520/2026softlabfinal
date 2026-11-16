@@ -655,8 +655,9 @@ async function saveFile(filename,data,label){
   }
 }
 async function buildPdfBlob(){
-  let host=null;
+  let host=null; const sx=window.scrollX, sy=window.scrollY;
   try{
+    window.scrollTo(0,0); // 화면을 아래로 내린 상태에서 캡처하면 빈 페이지가 되는 문제 방지
     // A4(210mm) 폭의 복제본을 화면 밖에 만들어 그대로 캔버스로 찍음: 페이지 여백은 복제본의 padding으로만 지정
     const clone=$("#paper").cloneNode(true);
     clone.id="paper-export"; clone.className="paper export";
@@ -670,12 +671,12 @@ async function buildPdfBlob(){
     await new Promise(r=>setTimeout(r,50));
     const blob=await html2pdf().set({
       margin:[15,0,18,0],
-      html2canvas:{scale:2,useCORS:true,letterRendering:true},
+      html2canvas:{scale:2,useCORS:true,letterRendering:true,scrollX:0,scrollY:0},
       jsPDF:{unit:"mm",format:"a4",orientation:"portrait"},
       pagebreak:{mode:["css","legacy"],avoid:["tr",".keep"]}
     }).from(clone).outputPdf("blob");
     return blob;
-  }finally{if(host)host.remove();}
+  }finally{if(host)host.remove(); window.scrollTo(sx,sy);}
 }
 async function exportPdf(){
   const b=$("#btnPdf"); b.disabled=true; setStatus($("#exportStatus"),"PDF를 만들고 있습니다…");
