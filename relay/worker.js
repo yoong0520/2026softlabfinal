@@ -42,9 +42,8 @@ export default {
     for (const model of MODELS) {
       try {
         const r = await env.AI.run(model, { messages, max_tokens, temperature: 0.4 });
-        // 모델에 따라 response가 문자열이 아니라 이미 파싱된 JSON 객체로 올 수 있음 → 문자열로 통일
-        let raw = typeof r === "string" ? r : (r.response ?? r.result?.response ?? r.choices?.[0]?.message?.content ?? r);
-        let text = typeof raw === "string" ? raw : JSON.stringify(raw);
+        // 모델에 따라 response가 문자열이 아니라 객체(JSON·구조화 응답)로 올 수 있음 → 글자만 뽑아 문자열로 통일
+        let text = extractText(r);
         text = text.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
         if (!text) throw new Error("빈 응답");
         return json({ model, content: [{ type: "text", text }] }, 200, cors);
@@ -60,6 +59,24 @@ export default {
     return json({ error: { message: "AI 모델 호출에 실패했습니다: " + String(lastErr && lastErr.message || lastErr).slice(0, 120) } }, 502, cors);
   },
 };
+
+function extractText(r) {
+  if (r == null) return "";
+  if (typeof r === "string") return r;
+  if (Array.isArray(r)) return r.map(extractText).join("");
+  if (typeof r === "object") {
+    for (const k of ["response", "text", "content", "output_text", "result", "message", "choices", "output"]) {
+      if (r[k] != null) {
+        const t = extractText(r[k]);
+        if (t) return t;
+      }
+    }
+    const vals = Object.values(r).filter(v => typeof v === "string" && v.length > 20);
+    if (vals.length) return vals.join("\n");
+    return JSON.stringify(r);
+  }
+  return String(r);
+}
 
 function json(obj, status, headers) {
   return new Response(JSON.stringify(obj), { status, headers: { ...headers, "content-type": "application/json" } });
