@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>참가확인증 발급 · 2026년 고등교육 에듀테크 소프트랩 성과 포럼</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --navy:#1f3864; --blue:#2e5aac; --accent:#2e5aac; --ink:#333333; --muted:#5b6b7f;
+  --line:#d9e3ec; --soft:#f4f8fb; --note:#f8fafc; --paper:#ffffff; --bg:#eef2f7;
+  --font:'Pretendard','Noto Sans KR','나눔고딕','NanumGothic','Apple SD Gothic Neo',sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:var(--font);color:var(--ink);background:var(--bg);line-height:1.6;-webkit-font-smoothing:antialiased;word-break:keep-all}
+.wrap{max-width:860px;margin:0 auto;padding:32px 16px 60px}
+
+.top{background:var(--paper);border:1px solid var(--line);padding:26px 28px 22px;margin-bottom:18px;display:flex;justify-content:space-between;gap:20px;align-items:flex-start}
+.top .mark{flex:0 0 auto;margin-top:4px;text-align:right;line-height:1.3;color:var(--navy);white-space:nowrap}
+.top .mark span{display:block;font-size:12px;font-weight:600;letter-spacing:.22em;color:var(--blue)}
+.top .mark b{display:block;font-size:17px;font-weight:800}
+.top .from{font-size:14px;font-weight:700;color:var(--blue);margin:0 0 6px}
+.top h1{font-size:24px;line-height:34px;color:var(--navy);margin:0 0 6px;font-weight:700}
+.top .lede{font-size:14px;line-height:24px;color:var(--muted);margin:0}
+.dots{display:flex;margin:16px 0 0}
+.dots i{display:block;width:8px;height:3px}
+.dots i:nth-child(1){background:#1f3864}.dots i:nth-child(2){background:#27488a}.dots i:nth-child(3){background:#2e5aac}
+.dots i:nth-child(4){background:#4a78c8}.dots i:nth-child(5){background:#6f9be0}.dots i:nth-child(6){background:#9fc0ff}
+
+.card{background:var(--paper);border:1px solid var(--line);padding:26px 28px;margin-bottom:18px}
+.card h2{font-size:17px;line-height:26px;color:var(--navy);margin:0 0 14px;font-weight:700}
+.info{background:var(--soft);border-left:4px solid var(--blue);padding:14px 18px;font-size:14px;line-height:24px;margin:0 0 20px}
+.info b{color:var(--navy)}
+.info .em{color:var(--accent);font-weight:700}
+.field{margin:0 0 16px}
+.field label{display:block;font-size:14px;font-weight:700;color:var(--navy);margin:0 0 6px}
+.field label small{font-weight:400;color:var(--muted);margin-left:6px}
+.field input{width:100%;font:inherit;font-size:16px;padding:11px 13px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--ink)}
+.field input:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:var(--blue)}
+.field .hint{font-size:12px;color:var(--muted);margin:5px 0 0}
+.agree{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:21px;color:#555;margin:4px 0 20px}
+.agree input{margin-top:4px}
+.btn{font:inherit;font-size:15px;font-weight:700;padding:12px 24px;border:0;border-radius:4px;background:var(--blue);color:#fff;cursor:pointer}
+.btn:hover{background:#264b91}
+.btn:disabled{background:#9fb6c9;cursor:not-allowed}
+.btn.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
+.btn.ghost:hover{background:var(--soft)}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.status{font-size:14px;line-height:22px;margin:14px 0 0;padding:12px 16px;border-radius:4px;display:none}
+.status.ok{display:block;background:#eef8f1;color:#1d6b3a;border:1px solid #cfe9d8}
+.status.warn{display:block;background:#fff8e6;color:#8a5a00;border:1px solid #f1e0b0}
+.status.err{display:block;background:#fdeeee;color:#9b1c1c;border:1px solid #f0c9c9}
+.note{background:var(--note);font-size:13px;line-height:23px;color:#666;padding:14px 16px;margin:18px 0 0}
+
+/* 확인증 (화면용·PDF용 공통) */
+#certWrap{display:none}
+.cert-tools{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px;align-items:center}
+.cert-tools .busy{font-size:13px;color:var(--muted)}
+.sheet{background:#fff;width:210mm;height:297mm;margin:0 auto;padding:18mm 20mm;box-shadow:0 2px 14px rgba(31,56,100,.12);position:relative;color:var(--ink);font-family:var(--font)}
+.sheet .frame{border:2px solid var(--navy);padding:4px;height:100%}
+.sheet .inner{border:1px solid var(--navy);padding:16mm 14mm 14mm;height:100%;display:flex;flex-direction:column}
+.cert-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.cert-mark{text-align:right;line-height:1.3;color:var(--navy);white-space:nowrap}
+.cert-mark span{display:block;font-size:11px;font-weight:600;letter-spacing:.22em;color:var(--blue)}
+.cert-mark b{display:block;font-size:15.5px;font-weight:800}
+.cert-no{font-size:13px;color:var(--navy);font-weight:700;letter-spacing:.02em;white-space:nowrap}
+.cert-band{display:flex;margin:6px 0 0}
+.cert-band i{display:block;width:10px;height:4px}
+.cert-band i:nth-child(1){background:#1f3864}.cert-band i:nth-child(2){background:#27488a}.cert-band i:nth-child(3){background:#2e5aac}
+.cert-band i:nth-child(4){background:#4a78c8}.cert-band i:nth-child(5){background:#6f9be0}.cert-band i:nth-child(6){background:#9fc0ff}
+.cert-title{text-align:center;font-size:36px;letter-spacing:.42em;text-indent:.42em;color:var(--navy);font-weight:700;margin:20mm 0 16mm}
+.cert-table{width:100%;border-collapse:collapse;font-size:15.5px;margin:0 0 14mm}
+.cert-table th{width:92px;text-align:left;font-weight:700;color:var(--navy);padding:7px 0;letter-spacing:.3em;vertical-align:top;white-space:nowrap}
+.cert-table td{padding:7px 0 7px 10px;color:var(--ink);border-bottom:1px dotted #c9d4e0}
+.cert-body{text-align:center;font-size:16.5px;line-height:2.05;color:var(--ink);margin:0 0 auto}
+.cert-date{text-align:center;font-size:16px;margin:14mm 0 10mm;color:var(--ink)}
+.cert-issuer{text-align:center;font-size:19px;font-weight:700;color:var(--navy);letter-spacing:.06em;margin:0;white-space:nowrap}
+.cert-issuer small{display:inline-block;margin-left:10px;font-size:13px;font-weight:400;color:#777;letter-spacing:0}
+.cert-foot{margin-top:10mm;padding-top:6px;border-top:1px solid var(--line);font-size:10.5px;line-height:16px;color:#888;display:flex;justify-content:space-between;align-items:baseline;gap:16px;white-space:nowrap}
+.cert-foot .l{min-width:0}
+
+/* PDF 렌더링용 고정 크기 복제본 (화면 밖) */
+#pdfStage{position:absolute;left:-20000px;top:0;width:210mm}
+#pdfStage .sheet{box-shadow:none;margin:0}
+
+@media (max-width:900px){
+  .top{display:block}.top .mark{display:none}
+  .sheet{width:100%;height:auto;padding:8mm 6mm}
+  .sheet .frame,.sheet .inner{height:auto}
+  .sheet .inner{padding:8mm 6mm}
+  .cert-mark span{font-size:9.5px}.cert-mark b{font-size:12.5px}
+  .cert-title{font-size:26px;margin:10mm 0 8mm}
+  .cert-table{font-size:14px}.cert-table th{width:70px;letter-spacing:.15em}
+  .cert-body{font-size:14.5px}
+  .cert-issuer{font-size:14px;white-space:normal}
+  .cert-foot{white-space:normal;display:block}
+}
+@media print{
+  @page{size:A4 portrait;margin:0}
+  body{background:#fff}
+  .wrap{max-width:none;padding:0;margin:0}
+  .top,.card,.cert-tools,.note,.status,#pdfStage{display:none!important}
+  #certWrap{display:block!important}
+  .sheet{box-shadow:none;margin:0;width:210mm;height:297mm}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <p class="from">한림대학교 에듀테크소프트랩사업단</p>
+      <h1>2026년 고등교육 에듀테크 소프트랩 성과 포럼<br>참가확인증 발급</h1>
+      <p class="lede">성명·소속·이메일을 입력하시면 발급번호가 붙은 참가확인증이 만들어지고, PDF 파일로 바로 내려받으실 수 있습니다.</p>
+      <div class="dots"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    </div>
+    <div class="mark" role="img" aria-label="한림대학교 에듀테크소프트랩사업단"><span>한림대학교</span><b>에듀테크소프트랩사업단</b></div>
+  </header>
+
+  <section class="card" id="formCard">
+    <h2>참가자 정보 입력</h2>
+    <div class="info">
+      <b>행사명</b>&nbsp; 2026년 고등교육 에듀테크 소프트랩 성과 포럼<br>
+      <b>참가일</b>&nbsp; 2026. 11. 24.(화)<br>
+      <b>발급</b>&nbsp; <span class="em">입력 순서대로 발급번호 부여 · 즉시 PDF 내려받기</span> · 같은 이메일로 다시 입력하면 처음 번호로 다시 발급
+    </div>
+
+    <form id="issueForm" novalidate>
+      <div class="field">
+        <label for="name">성명 <small>참가 신청 시 기재한 이름</small></label>
+        <input id="name" name="name" type="text" maxlength="40" autocomplete="name" placeholder="예) 홍길동" required>
+      </div>
+      <div class="field">
+        <label for="org">소속 <small>기관명과 부서·직책</small></label>
+        <input id="org" name="org" type="text" maxlength="80" autocomplete="organization" placeholder="예) ○○대학교 교수학습개발센터 연구교수" required>
+      </div>
+      <div class="field">
+        <label for="email">이메일 <small>참가 신청 시 기재한 주소</small></label>
+        <input id="email" name="email" type="email" maxlength="120" autocomplete="email" placeholder="예) name@univ.ac.kr" required>
+        <p class="hint">발급번호 부여와 발급대장 기록에 쓰이며, 다른 용도로 이용하지 않습니다.</p>
+      </div>
+      <label class="agree">
+        <input id="agree" type="checkbox" required>
+        <span>본인이 2026년 고등교육 에듀테크 소프트랩 성과 포럼에 참가하였음을 확인하며, 참가확인증 발급·발급대장 관리를 위해 성명·소속·이메일을 수집·이용하는 데 동의합니다.</span>
+      </label>
+      <div class="actions">
+        <button class="btn" id="submitBtn" type="submit">참가확인증 만들기</button>
+      </div>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </form>
+
+    <div class="note">
+      · 발급번호는 입력하신 순서대로 에듀테크소프트랩사업단 2026-001호부터 부여되며, 사업단 발급대장에 기록됩니다.<br>
+      · 같은 이메일로 다시 입력하면 새 번호가 아니라 처음 발급된 번호로 다시 만들어집니다.<br>
+      · 성명·소속을 잘못 입력하셨다면 「다른 사람 발급하기」로 돌아가 다시 만드시면 됩니다.<br>
+      · PDF가 내려받아지지 않으면 「인쇄」 버튼을 눌러 「PDF로 저장」을 선택해 주세요.<br>
+      · 문의: 한림대학교 에듀테크소프트랩사업단 softlab@hallym.ac.kr
+    </div>
+  </section>
+
+  <section id="certWrap">
+    <div class="cert-tools">
+      <button class="btn" type="button" id="pdfBtn">PDF 내려받기</button>
+      <button class="btn ghost" type="button" id="printBtn">인쇄</button>
+      <button class="btn ghost" type="button" id="againBtn">다른 사람 발급하기</button>
+      <span class="busy" id="busy"></span>
+    </div>
+    <div class="sheet" id="sheet">
+      <div class="frame"><div class="inner">
+        <div class="cert-head">
+          <div>
+            <div class="cert-no" data-f="no">에듀테크소프트랩사업단 2026-000호</div>
+            <div class="cert-band"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+          <div class="cert-mark" role="img" aria-label="한림대학교 에듀테크소프트랩사업단"><span>한림대학교</span><b>에듀테크소프트랩사업단</b></div>
+        </div>
+
+        <div class="cert-title">참가확인증</div>
+
+        <table class="cert-table">
+          <tr><th>성명</th><td data-f="name"></td></tr>
+          <tr><th>소속</th><td data-f="org"></td></tr>
+          <tr><th>행사명</th><td>2026년 고등교육 에듀테크 소프트랩 성과 포럼</td></tr>
+          <tr><th>참가일</th><td>2026. 11. 24.(화)</td></tr>
+        </table>
+
+        <p class="cert-body">위 사람은 한림대학교 에듀테크소프트랩사업단에서 주관하는<br>2026년 고등교육 에듀테크 소프트랩 성과 포럼<br>행사에 참여하였기에 이 증서를 드립니다.</p>
+
+        <p class="cert-date">2026년 11월 24일</p>
+        <p class="cert-issuer">한림대학교 에듀테크소프트랩사업단장 <small>(직인생략)</small></p>
+
+        <div class="cert-foot">
+          <span class="l">한림대학교 에듀테크소프트랩사업단 · www.hiedsoftlab.com</span>
+          <span class="r" data-f="foot"></span>
+        </div>
+      </div></div>
+    </div>
+  </section>
+
+</div>
+
+<div id="pdfStage" aria-hidden="true"></div>
+
+<script>
+/* ===========================================================
+   선택 사항: 001, 002… 순번과 구글 시트 발급대장이 필요하면
+   Google Apps Script 웹 앱 URL을 넣어 주세요. 비워 두면
+   서버 없이 이 화면 안에서만 동작합니다(기본).
+   =========================================================== */
+var APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwmQzKNJIIZrYnt7pvyhn1mJUzeiswR10gjzR1ap7lTOOE8oZPgWoyqgEUNxPyRNujH/exec";
+var ISSUER_TAG = "에듀테크소프트랩사업단";   /* 발급번호 앞에 붙는 발급 기관 표기 */
+
+(function(){
+  var form = document.getElementById('issueForm');
+  var btn = document.getElementById('submitBtn');
+  var status = document.getElementById('status');
+  var certWrap = document.getElementById('certWrap');
+  var formCard = document.getElementById('formCard');
+  var busy = document.getElementById('busy');
+  var current = null;
+
+  function say(kind, msg){ status.className = 'status ' + kind; status.innerHTML = msg; }
+  function clean(s){ return String(s || '').replace(/\s+/g,' ').trim(); }
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function pad(n, w){ n = String(n); while (n.length < w) n = '0' + n; return n; }
+  function today(){
+    var d = new Date(); var p = function(x){ return (x<10?'0':'')+x; };
+    return d.getFullYear()+'. '+p(d.getMonth()+1)+'. '+p(d.getDate())+'.';
+  }
+
+  /* 53비트 문자열 해시 → 6자리 발급번호. 같은 입력이면 언제나 같은 번호 */
+  function hash53(str, seed){
+    var h1 = 0xdeadbeef ^ (seed||0), h2 = 0x41c6ce57 ^ (seed||0);
+    for (var i = 0, ch; i < str.length; i++){
+      ch = str.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1>>>16), 2246822507); h1 ^= Math.imul(h2 ^ (h2>>>13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2>>>16), 2246822507); h2 ^= Math.imul(h1 ^ (h1>>>13), 3266489909);
+    return 4294967296 * (2097151 & h2) + (h1>>>0);
+  }
+  function localNumber(name, org, email){
+    var key = [name, org, email].map(function(s){ return clean(s).toLowerCase().normalize('NFC'); }).join('|');
+    return '2026-' + pad(hash53('SOFTLABFORUM2026|' + key, 2026) % 1000000, 6);
+  }
+
+  function fill(root, data){
+    root.querySelector('[data-f="no"]').textContent = ISSUER_TAG + ' ' + data.number + '호';
+    root.querySelector('[data-f="name"]').textContent = data.name;
+    root.querySelector('[data-f="org"]').textContent = data.org;
+    root.querySelector('[data-f="foot"]').textContent = '발급 ' + data.issuedAt + ' · 문의 softlab@hallym.ac.kr';
+  }
+  function render(data){
+    current = data;
+    fill(document.getElementById('sheet'), data);
+    certWrap.style.display = 'block';
+    certWrap.scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  form.addEventListener('submit', function(ev){
+    ev.preventDefault();
+    var name = clean(form.name.value), org = clean(form.org.value), email = clean(form.email.value).toLowerCase();
+    if (!name || !org || !email){ say('err', '성명, 소속, 이메일을 모두 입력해 주세요.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)){ say('err', '이메일 주소 형식을 다시 확인해 주세요.'); return; }
+    if (!document.getElementById('agree').checked){ say('err', '참가 사실 확인에 체크해 주셔야 발급이 가능합니다.'); return; }
+    btn.disabled = true;
+
+    if (!APPS_SCRIPT_URL){
+      var data = { number: localNumber(name, org, email), name: name, org: org, issuedAt: today() };
+      render(data);
+      say('ok', '참가확인증이 만들어졌습니다. 발급번호는 <b>' + ISSUER_TAG + ' ' + esc(data.number) + '호</b>입니다. 아래 「PDF 내려받기」 버튼을 눌러 저장해 주세요.');
+      btn.disabled = false;
+      return;
+    }
+
+    say('ok', '발급번호를 부여하는 중입니다. 잠시만 기다려 주세요.');
+    fetch(APPS_SCRIPT_URL, { method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({ name:name, org:org, email:email }) })
+    .then(function(r){ return r.json(); })
+    .then(function(res){
+      if (!res || !res.ok) throw new Error(res && res.message ? res.message : '발급에 실패했습니다.');
+      render({ number: res.number, name: name, org: org, issuedAt: today() });
+      say('ok', (res.resent ? '이미 발급된 정보입니다. 처음 발급된 ' : '발급이 완료되었습니다. 발급번호는 ') + '<b>' + ISSUER_TAG + ' ' + esc(res.number) + '호</b>입니다. 아래 「PDF 내려받기」 버튼을 눌러 저장해 주세요.');
+    })
+    .catch(function(err){ say('err', '처리 중 문제가 발생했습니다: ' + esc(err.message || err) + '<br>잠시 후 다시 시도하시거나 사업단(softlab@hallym.ac.kr)으로 연락해 주세요.'); })
+    .finally(function(){ btn.disabled = false; });
+  });
+
+  /* PDF: 화면 크기와 무관하게 A4 고정 복제본을 그려서 저장 */
+  document.getElementById('pdfBtn').addEventListener('click', function(){
+    if (!current) return;
+    if (!window.html2canvas || !window.jspdf){ say('warn', 'PDF 도구를 불러오지 못했습니다. 「인쇄」 버튼으로 PDF 저장을 이용해 주세요.'); return; }
+    var pdfBtn = this; pdfBtn.disabled = true; busy.textContent = 'PDF를 만드는 중입니다…';
+    var stage = document.getElementById('pdfStage');
+    stage.innerHTML = '';
+    var clone = document.getElementById('sheet').cloneNode(true);
+    clone.id = 'pdfSheet'; fill(clone, current); stage.appendChild(clone);
+    var ready = (document.fonts && document.fonts.ready) ? document.fonts.ready : Promise.resolve();
+    ready.then(function(){
+      return html2canvas(clone, { scale: 2.5, useCORS: true, backgroundColor: '#ffffff', windowWidth: 1000 });
+    }).then(function(canvas){
+      var pdf = new window.jspdf.jsPDF({ orientation:'portrait', unit:'mm', format:'a4', compress:true });
+      pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 210, 297);
+      pdf.setProperties({ title: '참가확인증 ' + ISSUER_TAG + ' ' + current.number + '호', author: '한림대학교 에듀테크소프트랩사업단' });
+      pdf.save('참가확인증_소프트랩성과포럼_' + current.number + '호_' + current.name + '.pdf');
+      busy.textContent = '';
+    }).catch(function(e){
+      busy.textContent = '';
+      say('warn', 'PDF 생성에 실패했습니다(' + esc(e && e.message || e) + '). 「인쇄」 버튼에서 「PDF로 저장」을 선택해 주세요.');
+    }).finally(function(){ pdfBtn.disabled = false; stage.innerHTML = ''; });
+  });
+
+  document.getElementById('printBtn').addEventListener('click', function(){ window.print(); });
+  document.getElementById('againBtn').addEventListener('click', function(){
+    form.reset(); current = null; certWrap.style.display = 'none'; status.className = 'status'; status.innerHTML = '';
+    formCard.scrollIntoView({behavior:'smooth', block:'start'});
+  });
+})();
+</script>
+</body>
+</html>
